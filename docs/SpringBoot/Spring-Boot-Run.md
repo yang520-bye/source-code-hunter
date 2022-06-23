@@ -21,6 +21,56 @@ public class Application {
 
 ```
 
+点进run方法会发现创建了SpringApplication对象
+
+```java
+new SpringApplication(primarySources).run(args);
+```
+
+SpringApplication的构造方法
+
+```java
+public SpringApplication(ResourceLoader resourceLoader, Class<?>... primarySources) {
+        //获取资源的加载器
+		this.resourceLoader = resourceLoader;
+		Assert.notNull(primarySources, "PrimarySources must not be null");
+	 	this.primarySources = new LinkedHashSet<>(Arrays.asList(primarySources));
+       //判断当前容器是什么类型的
+       //NONE,SERVLET,REACTIVE; 分别对应以下几种
+       //不是web程序也不是响应式web
+       //基于 servlet 的web程序
+       //响应式web程序
+		this.webApplicationType = WebApplicationType.deduceFromClasspath();
+       //这会在是org.springframework.boot:spring-boot和org.springframework.boot:spring-boot-autoconfigure
+       //项目依赖下的spring.factories中的资源文件中
+       //spring.factories资源文件中寻找key是ApplicationContextInitializer类所对应的资源类，并实例化
+		setInitializers((Collection) getSpringFactoriesInstances(
+				ApplicationContextInitializer.class));
+       //spring.factories资源文件中寻找key是ApplicationListener类所对应的资源类，并实例化
+		setListeners((Collection) getSpringFactoriesInstances(ApplicationListener.class));
+       //设置主类也就是当前main方法所属类
+		this.mainApplicationClass = deduceMainApplicationClass();
+	}
+```
+
+```java
+private <T> Collection<T> getSpringFactoriesInstances(Class<T> type,
+                                                      Class<?>[] parameterTypes, Object... args) {
+    ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+    // Use names and ensure unique to protect against duplicates
+    //这里就是加载spring.factories中的资源文件中所对应的类
+    Set<String> names = new LinkedHashSet<>(
+        SpringFactoriesLoader.loadFactoryNames(type, classLoader));
+    //实例化
+    List<T> instances = createSpringFactoriesInstances(type, parameterTypes,
+                                                       classLoader, args, names);
+    AnnotationAwareOrderComparator.sort(instances);
+    return instances;
+}
+```
+
+如上我们可以发现共有两个类型ApplicationContextInitializer和ApplicationListener已经在SpringApplication创建对象的时候就已经加载并创建其所对应的资源类的对象，并充当SpringApplication的属性
+
 - 值得关注的有`SpringApplication.run`以及注解`@SpringBootApplication`
 
 ### run 方法
@@ -175,19 +225,19 @@ private <T> List<T> createSpringFactoriesInstances(Class<T> type, Class<?>[] par
 
   ```
   class SpringApplicationRunListeners {
-
+  
   	private final List<SpringApplicationRunListener> listeners;
   SpringApplicationRunListeners(Log log, Collection<? extends SpringApplicationRunListener> listeners) {
   		this.log = log;
   		this.listeners = new ArrayList<>(listeners);
   	}
-
+  
   	void starting() {
   		for (SpringApplicationRunListener listener : this.listeners) {
   			listener.starting();
   		}
   	}
-
+  
   }
   ```
 
@@ -265,16 +315,16 @@ private <T> List<T> createSpringFactoriesInstances(Class<T> type, Class<?>[] par
 
   ```java
   class SpringBootBanner implements Banner {
-
+  
   	private static final String[] BANNER = { "", "  .   ____          _            __ _ _",
   			" /\\\\ / ___'_ __ _ _(_)_ __  __ _ \\ \\ \\ \\", "( ( )\\___ | '_ | '_| | '_ \\/ _` | \\ \\ \\ \\",
   			" \\\\/  ___)| |_)| | | | | || (_| |  ) ) ) )", "  '  |____| .__|_| |_|_| |_\\__, | / / / /",
   			" =========|_|==============|___/=/_/_/_/" };
-
+  
   	private static final String SPRING_BOOT = " :: Spring Boot :: ";
-
+  
   	private static final int STRAP_LINE_SIZE = 42;
-
+  
   	@Override
   	public void printBanner(Environment environment, Class<?> sourceClass, PrintStream printStream) {
   		for (String line : BANNER) {
@@ -286,12 +336,12 @@ private <T> List<T> createSpringFactoriesInstances(Class<T> type, Class<?>[] par
   		while (padding.length() < STRAP_LINE_SIZE - (version.length() + SPRING_BOOT.length())) {
   			padding.append(" ");
   		}
-
+  
   		printStream.println(AnsiOutput.toString(AnsiColor.GREEN, SPRING_BOOT, AnsiColor.DEFAULT, padding.toString(),
   				AnsiStyle.FAINT, version));
   		printStream.println();
   	}
-
+  
   }
   ```
 
@@ -616,7 +666,7 @@ private int load(Object source) {
   ```
   	protected void afterRefresh(ConfigurableApplicationContext context, ApplicationArguments args) {
   	}
-
+  
   ```
 
 ### stopWatch.stop()
