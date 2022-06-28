@@ -18,7 +18,6 @@ public class Application {
 	}
 
 }
-
 ```
 
 点进run方法会发现创建了SpringApplication对象
@@ -41,12 +40,10 @@ public SpringApplication(ResourceLoader resourceLoader, Class<?>... primarySourc
        //基于 servlet 的web程序
        //响应式web程序
 		this.webApplicationType = WebApplicationType.deduceFromClasspath();
-       //这会在是org.springframework.boot:spring-boot和org.springframework.boot:spring-boot-autoconfigure
-       //项目依赖下的spring.factories中的资源文件中
-       //spring.factories资源文件中寻找key是ApplicationContextInitializer类所对应的资源类，并实例化
+       //spring.factories资源文件中寻找ApplicationContextInitializer类所对应的资源类，并实例化
 		setInitializers((Collection) getSpringFactoriesInstances(
 				ApplicationContextInitializer.class));
-       //spring.factories资源文件中寻找key是ApplicationListener类所对应的资源类，并实例化
+       //spring.factories资源文件中寻找ApplicationListener类所对应的资源类，并实例化
 		setListeners((Collection) getSpringFactoriesInstances(ApplicationListener.class));
        //设置主类也就是当前main方法所属类
 		this.mainApplicationClass = deduceMainApplicationClass();
@@ -223,7 +220,7 @@ private <T> List<T> createSpringFactoriesInstances(Class<T> type, Class<?>[] par
 
 - `SpringApplicationRunListeners` : `org.springframework.boot.SpringApplicationRunListeners` 这个类是`org.springframework.boot.SpringApplicationRunListener`的集合表现形式
 
-  ```
+  ```java
   class SpringApplicationRunListeners {
   
   	private final List<SpringApplicationRunListener> listeners;
@@ -266,6 +263,71 @@ private <T> List<T> createSpringFactoriesInstances(Class<T> type, Class<?>[] par
 		return environment;
 	}
 
+
+    //获取环境
+    private ConfigurableEnvironment getOrCreateEnvironment() {
+		if (this.environment != null) {
+			return this.environment;
+		}
+        //这个值就是上面已经设置的好的属性值，来对应创建环境对象
+		switch (this.webApplicationType) {
+		case SERVLET:
+			return new StandardServletEnvironment();
+		case REACTIVE:
+			return new StandardReactiveWebEnvironment();
+		default:
+			return new StandardEnvironment();
+		}
+	}
+
+    // 配置环境
+    protected void configureEnvironment(ConfigurableEnvironment environment, String[] args) {
+        //一般为true
+		if (this.addConversionService) {
+            //获取转化器
+			ConversionService conversionService = ApplicationConversionService.getSharedInstance();
+            //环境配置转化器对象
+			environment.setConversionService((ConfigurableConversionService) conversionService);
+		}
+		configurePropertySources(environment, args);
+		configureProfiles(environment, args);
+	}
+
+    //ConversionService实例获取
+    public static ConversionService getSharedInstance() {
+		ApplicationConversionService sharedInstance = ApplicationConversionService.sharedInstance;
+		if (sharedInstance == null) {
+			synchronized (ApplicationConversionService.class) {
+				sharedInstance = ApplicationConversionService.sharedInstance;
+				if (sharedInstance == null) {
+					sharedInstance = new ApplicationConversionService();
+					ApplicationConversionService.sharedInstance = sharedInstance;
+				}
+			}
+		}
+		return sharedInstance;
+	}
+
+   //来到ApplicationConversionService构造方法中
+    public ApplicationConversionService(StringValueResolver embeddedValueResolver) {
+		if (embeddedValueResolver != null) {
+			setEmbeddedValueResolver(embeddedValueResolver);
+		}
+        //基本走这里
+		configure(this);
+	}
+    
+   //配置转化器和格式化
+    public static void configure(FormatterRegistry registry) {
+         //添加一般环境的转换器
+		DefaultConversionService.addDefaultConverters(registry);
+         //添加一般环境的格式化程序
+		DefaultFormattingConversionService.addDefaultFormatters(registry);
+         //添加 Spring Boot 的格式化程序
+		addApplicationFormatters(registry);
+         //添加 Spring Boot 的转换器
+		addApplicationConverters(registry);
+	}
 ```
 
 ### configureIgnoreBeanInfo
